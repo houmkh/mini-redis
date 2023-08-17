@@ -11,15 +11,15 @@ use bytes::Bytes;
 /// channel named "foo" has no relation to setting the "foo" key.
 #[derive(Debug)]
 pub struct Publish {
-    /// Name of the channel on which the message should be published.
+    /// 频道名
     channel: String,
 
-    /// The message to publish.
+    /// 要发送的消息
     message: Bytes,
 }
 
 impl Publish {
-    /// Create a new `Publish` command which sends `message` on `channel`.
+    /// 创建Publish命令
     pub(crate) fn new(channel: impl ToString, message: Bytes) -> Publish {
         Publish {
             channel: channel.to_string(),
@@ -27,75 +27,32 @@ impl Publish {
         }
     }
 
-    /// Parse a `Publish` instance from a received frame.
-    ///
-    /// The `Parse` argument provides a cursor-like API to read fields from the
-    /// `Frame`. At this point, the entire frame has already been received from
-    /// the socket.
-    ///
-    /// The `PUBLISH` string has already been consumed.
-    ///
-    /// # Returns
-    ///
-    /// On success, the `Publish` value is returned. If the frame is malformed,
-    /// `Err` is returned.
-    ///
-    /// # Format
-    ///
-    /// Expects an array frame containing three entries.
-    ///
-    /// ```text
-    /// PUBLISH channel message
-    /// ```
+    /// 解析frame，并获取对应Publish命令
     pub(crate) fn parse_frames(parse: &mut Parse) -> crate::Result<Publish> {
-        // The `PUBLISH` string has already been consumed. Extract the `channel`
-        // and `message` values from the frame.
-        //
-        // The `channel` must be a valid string.
-        let channel = parse.next_string()?;
+        // 获取string形式的channel
 
-        // The `message` is arbitrary bytes.
-        let message = parse.next_bytes()?;
+        // 获取字节形式的message
 
-        Ok(Publish { channel, message })
+        // 返回对应Publish
+        todo!();
     }
 
-    /// Apply the `Publish` command to the specified `Db` instance.
-    ///
-    /// The response is written to `dst`. This is called by the server in order
-    /// to execute a received command.
+    /// 对数据库执行publish命令
     pub(crate) async fn apply(self, db: &Db, dst: &mut Connection) -> crate::Result<()> {
-        // The shared state contains the `tokio::sync::broadcast::Sender` for
-        // all active channels. Calling `db.publish` dispatches the message into
-        // the appropriate channel.
-        //
-        // The number of subscribers currently listening on the channel is
-        // returned. This does not mean that `num_subscriber` channels will
-        // receive the message. Subscribers may drop before receiving the
-        // message. Given this, `num_subscribers` should only be used as a
-        // "hint".
-        let num_subscribers = db.publish(&self.channel, self.message);
+        // 向数据库连接执行publish操作，并获取到订阅channel的subscriber的数量
 
-        // The number of subscribers is returned as the response to the publish
-        // request.
-        let response = Frame::Integer(num_subscribers as u64);
+        // 将subscriber_num转换成整数帧，并将其写入连接
+        todo!();
 
-        // Write the frame to the client.
-        dst.write_frame(&response).await?;
+        
 
-        Ok(())
     }
 
-    /// Converts the command into an equivalent `Frame`.
-    ///
-    /// This is called by the client when encoding a `Publish` command to send
-    /// to the server.
+    /// 将publish命令转成frame的形式
     pub(crate) fn into_frame(self) -> Frame {
         let mut frame = Frame::array();
-        frame.push_bulk(Bytes::from("publish".as_bytes()));
-        frame.push_bulk(Bytes::from(self.channel.into_bytes()));
-        frame.push_bulk(self.message);
-
+        // 将publish命令以["publish",channel,message]的形式写入数组。注意每个元素都要转成字节形式
+        todo!();
         frame
     }
 }

@@ -7,11 +7,11 @@ use tokio::select;
 use tokio::sync::broadcast;
 use tokio_stream::{Stream, StreamExt, StreamMap};
 
-/// Subscribes the client to one or more channels.
+/// 订阅命令
 ///
-/// Once the client enters the subscribed state, it is not supposed to issue any
-/// other commands, except for additional SUBSCRIBE, PSUBSCRIBE, UNSUBSCRIBE,
-/// PUNSUBSCRIBE, PING and QUIT commands.
+/// 一旦客户端进入订阅状态，它只能提出
+/// SUBSCRIBE, PSUBSCRIBE, UNSUBSCRIBE,
+/// PUNSUBSCRIBE, PING 和 QUIT命令
 #[derive(Debug)]
 pub struct Subscribe {
     channels: Vec<String>,
@@ -26,143 +26,67 @@ pub struct Unsubscribe {
     channels: Vec<String>,
 }
 
-/// Stream of messages. The stream receives messages from the
-/// `broadcast::Receiver`. We use `stream!` to create a `Stream` that consumes
-/// messages. Because `stream!` values cannot be named, we box the stream using
-/// a trait object.
+/// 信息流
 type Messages = Pin<Box<dyn Stream<Item = Bytes> + Send>>;
 
 impl Subscribe {
-    /// Creates a new `Subscribe` command to listen on the specified channels.
-    pub(crate) fn new(channels: Vec<String>) -> Subscribe {
-        Subscribe { channels }
+    /// 创建一个新的订阅者以监听频道
+    pub(crate) fn new(channels: &[String]) -> Subscribe {
+        todo!();
     }
-
-    /// Parse a `Subscribe` instance from a received frame.
-    ///
-    /// The `Parse` argument provides a cursor-like API to read fields from the
-    /// `Frame`. At this point, the entire frame has already been received from
-    /// the socket.
-    ///
-    /// The `SUBSCRIBE` string has already been consumed.
-    ///
-    /// # Returns
-    ///
-    /// On success, the `Subscribe` value is returned. If the frame is
-    /// malformed, `Err` is returned.
-    ///
-    /// # Format
-    ///
-    /// Expects an array frame containing two or more entries.
-    ///
-    /// ```text
-    /// SUBSCRIBE channel [channel ...]
-    /// ```
+    /// 解析subscribe帧
     pub(crate) fn parse_frames(parse: &mut Parse) -> crate::Result<Subscribe> {
         use ParseError::EndOfStream;
-
-        // The `SUBSCRIBE` string has already been consumed. At this point,
-        // there is one or more strings remaining in `parse`. These represent
-        // the channels to subscribe to.
-        //
-        // Extract the first string. If there is none, the the frame is
-        // malformed and the error is bubbled up.
-        let mut channels = vec![parse.next_string()?];
-
-        // Now, the remainder of the frame is consumed. Each value must be a
-        // string or the frame is malformed. Once all values in the frame have
-        // been consumed, the command is fully parsed.
-        loop {
-            match parse.next_string() {
-                // A string has been consumed from the `parse`, push it into the
-                // list of channels to subscribe to.
-                Ok(s) => channels.push(s),
-                // The `EndOfStream` error indicates there is no further data to
-                // parse.
-                Err(EndOfStream) => break,
-                // All other errors are bubbled up, resulting in the connection
-                // being terminated.
-                Err(err) => return Err(err.into()),
-            }
-        }
-
-        Ok(Subscribe { channels })
+        // 获取第一个channel，并判断是否为none，不为none则写入数组
+        todo!();
+        // 循环解析剩下的channel，并将其写入数组
+        todo!();
+        // 返回结果
+        todo!();
     }
 
-    /// Apply the `Subscribe` command to the specified `Db` instance.
-    ///
-    /// This function is the entry point and includes the initial list of
-    /// channels to subscribe to. Additional `subscribe` and `unsubscribe`
-    /// commands may be received from the client and the list of subscriptions
-    /// are updated accordingly.
-    ///
-    /// [here]: https://redis.io/topics/pubsub
+    /// 数据库执行subscribe命令
     pub(crate) async fn apply(
         mut self,
         db: &Db,
         dst: &mut Connection,
         shutdown: &mut Shutdown,
     ) -> crate::Result<()> {
-        // Each individual channel subscription is handled using a
-        // `sync::broadcast` channel. Messages are then fanned out to all
-        // clients currently subscribed to the channels.
-        //
-        // An individual client may subscribe to multiple channels and may
-        // dynamically add and remove channels from its subscription set. To
-        // handle this, a `StreamMap` is used to track active subscriptions. The
-        // `StreamMap` merges messages from individual broadcast channels as
-        // they are received.
-        let mut subscriptions = StreamMap::new();
+        // TODO 创建一个 StreamMap 对象,用于跟踪活动的订阅。使用map可以防止订阅重复"
+        todo!();
 
-        loop {
-            // `self.channels` is used to track additional channels to subscribe
-            // to. When new `SUBSCRIBE` commands are received during the
-            // execution of `apply`, the new channels are pushed onto this vec.
-            for channel_name in self.channels.drain(..) {
-                subscribe_to_channel(channel_name, &mut subscriptions, db, dst).await?;
-            }
+        //loop {
+        // TODO 遍历channels，drain(..)会将管道从channels中移除
+        // subscribe_to_channel会订阅传入的管道
+        // await等待管道订阅成功
 
-            // Wait for one of the following to happen:
-            //
-            // - Receive a message from one of the subscribed channels.
-            // - Receive a subscribe or unsubscribe command from the client.
-            // - A server shutdown signal.
-            select! {
-                // Receive messages from subscribed channels
-                Some((channel_name, msg)) = subscriptions.next() => {
-                    dst.write_frame(&make_message_frame(channel_name, msg)).await?;
-                }
-                res = dst.read_frame() => {
-                    let frame = match res? {
-                        Some(frame) => frame,
-                        // This happens if the remote client has disconnected.
-                        None => return Ok(())
-                    };
+        // TODO 使用 select! 宏等待以下几种情况中的任何一种发生：
+        // 1. 从已订阅的通道接收到消息。
+        // 2. 从客户端接收到订阅或取消订阅命令。
+        // 3. 收到服务器关闭信号。
+        // select! {
 
-                    handle_command(
-                        frame,
-                        &mut self.channels,
-                        &mut subscriptions,
-                        dst,
-                    ).await?;
-                }
-                _ = shutdown.recv() => {
-                    return Ok(());
-                }
-            };
-        }
+        // TODO 1. 接收来自已订阅通道的消息。
+        // subscriptions.next() 返回一个异步迭代器
+        // 当有新的消息到达时，会返回 Some((channel_name, msg)),并将将收到的消息构造成消息帧写给客户端
+        // 其中 channel_name 是通道名称，msg 是消息内容。
+
+        // TODO 2. dst.read_frame() 返回一个异步操作结果，
+        //当有新的帧可用时，会返回 Some(frame)，其中 frame 是读取到的帧。如果客户端断开连接，会返回 None。
+        // 读取到帧后，处理从客户端接收到的命令帧
+
+        // TODO 3. 接收服务器关闭信号。
+
+        // };
+        //}
     }
 
-    /// Converts the command into an equivalent `Frame`.
-    ///
-    /// This is called by the client when encoding a `Subscribe` command to send
-    /// to the server.
+    /// 将命令转为frame类型
     pub(crate) fn into_frame(self) -> Frame {
         let mut frame = Frame::array();
-        frame.push_bulk(Bytes::from("subscribe".as_bytes()));
-        for channel in self.channels {
-            frame.push_bulk(Bytes::from(channel.into_bytes()));
-        }
+        // 将命令以["subscribe",channel1,channel2...]的形
+        //式放入数组
+        todo!();
         frame
     }
 }
@@ -173,9 +97,10 @@ async fn subscribe_to_channel(
     db: &Db,
     dst: &mut Connection,
 ) -> crate::Result<()> {
+    // 向数据发送订阅请求
     let mut rx = db.subscribe(channel_name.clone());
 
-    // Subscribe to the channel.
+    // 接受订阅回复
     let rx = Box::pin(async_stream::stream! {
         loop {
             match rx.recv().await {
@@ -187,10 +112,10 @@ async fn subscribe_to_channel(
         }
     });
 
-    // Track subscription in this client's subscription set.
+    // 将订阅成功的管道加入到订阅map中
     subscriptions.insert(channel_name.clone(), rx);
 
-    // Respond with the successful subscription
+    // 响应成功订阅报文
     let response = make_subscribe_frame(channel_name, subscriptions.len());
     dst.write_frame(&response).await?;
 
@@ -208,41 +133,19 @@ async fn handle_command(
     subscriptions: &mut StreamMap<String, Messages>,
     dst: &mut Connection,
 ) -> crate::Result<()> {
-    // A command has been received from the client.
-    //
-    // Only `SUBSCRIBE` and `UNSUBSCRIBE` commands are permitted
-    // in this context.
-    match Command::from_frame(frame)? {
-        Command::Subscribe(subscribe) => {
-            // The `apply` method will subscribe to the channels we add to this
-            // vector.
-            subscribe_to.extend(subscribe.channels.into_iter());
-        }
-        Command::Unsubscribe(mut unsubscribe) => {
-            // If no channels are specified, this requests unsubscribing from
-            // **all** channels. To implement this, the `unsubscribe.channels`
-            // vec is populated with the list of channels currently subscribed
-            // to.
-            if unsubscribe.channels.is_empty() {
-                unsubscribe.channels = subscriptions
-                    .keys()
-                    .map(|channel_name| channel_name.to_string())
-                    .collect();
-            }
+    // match Command::from_frame(frame)? {
+    // 分别处理Subscribe和Unsubscribe
+    /*
+        Subscribe：将要订阅的频道加入到订阅map
 
-            for channel_name in unsubscribe.channels {
-                subscriptions.remove(&channel_name);
+        Unsubscribe:
+        1. 判断是否指定了要取消订阅的频道,如果没有则需要订阅所有channels
+        2. 将需要取消订阅的频道从map中移除,同时需要发送unsubscribe响应
 
-                let response = make_unsubscribe_frame(channel_name, subscriptions.len());
-                dst.write_frame(&response).await?;
-            }
-        }
-        command => {
-            let cmd = Unknown::new(command.get_name());
-            cmd.apply(dst).await?;
-        }
-    }
-    Ok(())
+        其余命令以unknown命令处理
+    */
+    // }
+    todo!();
 }
 
 /// Creates the response to a subcribe request.
@@ -279,71 +182,28 @@ fn make_message_frame(channel_name: String, msg: Bytes) -> Frame {
 }
 
 impl Unsubscribe {
-    /// Create a new `Unsubscribe` command with the given `channels`.
     pub(crate) fn new(channels: &[String]) -> Unsubscribe {
         Unsubscribe {
             channels: channels.to_vec(),
         }
     }
-
-    /// Parse an `Unsubscribe` instance from a received frame.
-    ///
-    /// The `Parse` argument provides a cursor-like API to read fields from the
-    /// `Frame`. At this point, the entire frame has already been received from
-    /// the socket.
-    ///
-    /// The `UNSUBSCRIBE` string has already been consumed.
-    ///
-    /// # Returns
-    ///
-    /// On success, the `Unsubscribe` value is returned. If the frame is
-    /// malformed, `Err` is returned.
-    ///
-    /// # Format
-    ///
-    /// Expects an array frame containing at least one entry.
-    ///
-    /// ```text
-    /// UNSUBSCRIBE [channel [channel ...]]
-    /// ```
+    /// 解析unsubscribe帧
     pub(crate) fn parse_frames(parse: &mut Parse) -> Result<Unsubscribe, ParseError> {
         use ParseError::EndOfStream;
 
-        // There may be no channels listed, so start with an empty vec.
-        let mut channels = vec![];
+        // 创建数组，用于存储channels
+        todo!();
 
-        // Each entry in the frame must be a string or the frame is malformed.
-        // Once all values in the frame have been consumed, the command is fully
-        // parsed.
-        loop {
-            match parse.next_string() {
-                // A string has been consumed from the `parse`, push it into the
-                // list of channels to unsubscribe from.
-                Ok(s) => channels.push(s),
-                // The `EndOfStream` error indicates there is no further data to
-                // parse.
-                Err(EndOfStream) => break,
-                // All other errors are bubbled up, resulting in the connection
-                // being terminated.
-                Err(err) => return Err(err),
-            }
-        }
+        // 循环解析数据，将channel放入数组
 
-        Ok(Unsubscribe { channels })
+        // 返回命令
     }
-
-    /// Converts the command into an equivalent `Frame`.
-    ///
-    /// This is called by the client when encoding an `Unsubscribe` command to
-    /// send to the server.
+    /// 将unsubscribe命令转成帧
     pub(crate) fn into_frame(self) -> Frame {
         let mut frame = Frame::array();
-        frame.push_bulk(Bytes::from("unsubscribe".as_bytes()));
-
-        for channel in self.channels {
-            frame.push_bulk(Bytes::from(channel.into_bytes()));
-        }
-
+        // 将命令以["unsubscribe",channel1,channel2...]形
+        // 式放入数组
+        todo!();
         frame
     }
 }

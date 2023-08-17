@@ -9,7 +9,7 @@ use tracing::{debug, instrument};
 /// is still alive, or to measure latency.
 #[derive(Debug, Default)]
 pub struct Ping {
-    /// optional message to be returned
+    /// 自定义消息返回
     msg: Option<Bytes>,
 }
 
@@ -19,63 +19,33 @@ impl Ping {
         Ping { msg }
     }
 
-    /// Parse a `Ping` instance from a received frame.
-    ///
-    /// The `Parse` argument provides a cursor-like API to read fields from the
-    /// `Frame`. At this point, the entire frame has already been received from
-    /// the socket.
-    ///
-    /// The `PING` string has already been consumed.
-    ///
-    /// # Returns
-    ///
-    /// Returns the `Ping` value on success. If the frame is malformed, `Err` is
-    /// returned.
-    ///
-    /// # Format
-    ///
-    /// Expects an array frame containing `PING` and an optional message.
-    ///
-    /// ```text
-    /// PING [message]
-    /// ```
+    /// 解析ping的帧
     pub(crate) fn parse_frames(parse: &mut Parse) -> crate::Result<Ping> {
-        match parse.next_bytes() {
-            Ok(msg) => Ok(Ping::new(Some(msg))),
-            Err(ParseError::EndOfStream) => Ok(Ping::default()),
-            Err(e) => Err(e.into()),
-        }
+        /*
+            获取数据，分情况讨论
+            1. 数据正常：生成带信息ping类型命令并返回
+            2. EndOfStream: 生成默认类型ping命令并返回
+            3. 错误信息：返回错误
+        */
+        todo!();
     }
 
-    /// Apply the `Ping` command and return the message.
-    ///
-    /// The response is written to `dst`. This is called by the server in order
-    /// to execute a received command.
+    /// ping命令执行逻辑
     #[instrument(skip(self, dst))]
     pub(crate) async fn apply(self, dst: &mut Connection) -> crate::Result<()> {
-        let response = match self.msg {
-            None => Frame::Simple("PONG".to_string()),
-            Some(msg) => Frame::Bulk(msg),
-        };
-
-        debug!(?response);
-
-        // Write the response back to the client
-        dst.write_frame(&response).await?;
-
-        Ok(())
+        /*
+           1. 判断是否需要携带信息
+               a.不需要携带信息则生成"PONG"响应
+               b.携带信息则将信息转成Bulk形式
+           2. 日志记录响应
+           3. 回复响应
+        */
+        todo!();
     }
 
-    /// Converts the command into an equivalent `Frame`.
-    ///
-    /// This is called by the client when encoding a `Ping` command to send
-    /// to the server.
+    /// 将命令转换成frame
     pub(crate) fn into_frame(self) -> Frame {
-        let mut frame = Frame::array();
-        frame.push_bulk(Bytes::from("ping".as_bytes()));
-        if let Some(msg) = self.msg {
-            frame.push_bulk(msg);
-        }
-        frame
+        // 生成["ping",xxxx]形式的bulk frame
+        todo!();
     }
 }

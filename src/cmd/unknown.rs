@@ -8,30 +8,28 @@ pub struct Unknown {
     command_name: String,
 }
 
-impl Unknown {
-    /// Create a new `Unknown` command which responds to unknown commands
-    /// issued by clients
+impl Unknown{
+    /// 创建unknown命令
     pub(crate) fn new(key: impl ToString) -> Unknown {
         Unknown {
             command_name: key.to_string(),
         }
     }
 
-    /// Returns the command name
+    /// 获取命令名
     pub(crate) fn get_name(&self) -> &str {
-        &self.command_name
+        todo!();
     }
 
-    /// Responds to the client, indicating the command is not recognized.
-    ///
-    /// This usually means the command is not yet implemented by `mini-redis`.
+    /// 回应客户端不支持当前命令
     #[instrument(skip(self, dst))]
     pub(crate) async fn apply(self, dst: &mut Connection) -> crate::Result<()> {
-        let response = Frame::Error(format!("ERR unknown command '{}'", self.command_name));
-
-        debug!(?response);
-
-        dst.write_frame(&response).await?;
+        // 生成错误帧响应
+        todo!();
+        // 日志记录响应
+        todo!();
+        // 将帧写入连接
+        todo!();
         Ok(())
     }
 }

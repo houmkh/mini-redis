@@ -30,10 +30,9 @@ pub struct Set {
 }
 
 impl Set {
-    /// Create a new `Set` command which sets `key` to `value`.
+    /// 创建一个set命令
     ///
-    /// If `expire` is `Some`, the value should expire after the specified
-    /// duration.
+    /// 如果不需要过期时间则expire为None
     pub fn new(key: impl ToString, value: Bytes, expire: Option<Duration>) -> Set {
         Set {
             key: key.to_string(),
@@ -57,105 +56,50 @@ impl Set {
         self.expire
     }
 
-    /// Parse a `Set` instance from a received frame.
-    ///
-    /// The `Parse` argument provides a cursor-like API to read fields from the
-    /// `Frame`. At this point, the entire frame has already been received from
-    /// the socket.
-    ///
-    /// The `SET` string has already been consumed.
-    ///
-    /// # Returns
-    ///
-    /// Returns the `Set` value on success. If the frame is malformed, `Err` is
-    /// returned.
-    ///
-    /// # Format
-    ///
-    /// Expects an array frame containing at least 3 entries.
-    ///
-    /// ```text
-    /// SET key value [EX seconds|PX milliseconds]
-    /// ```
+    /// 解析frame
     pub(crate) fn parse_frames(parse: &mut Parse) -> crate::Result<Set> {
         use ParseError::EndOfStream;
 
-        // Read the key to set. This is a required field
-        let key = parse.next_string()?;
+        // 使用 parse.next_string() 方法读取下一个字符串字段作为键（key）。
+        // 如果解析成功，则返回键的值；否则，返回一个错误。
 
-        // Read the value to set. This is a required field.
-        let value = parse.next_bytes()?;
 
-        // The expiration is optional. If nothing else follows, then it is
-        // `None`.
-        let mut expire = None;
+        // 使用 parse.next_bytes() 方法读取下一个字节字段作为值（value）。
+        // 如果解析成功，则返回值的字节切片；否则，返回一个错误。
 
-        // Attempt to parse another string.
-        match parse.next_string() {
-            Ok(s) if s.to_uppercase() == "EX" => {
-                // An expiration is specified in seconds. The next value is an
-                // integer.
-                let secs = parse.next_int()?;
-                expire = Some(Duration::from_secs(secs));
-            }
-            Ok(s) if s.to_uppercase() == "PX" => {
-                // An expiration is specified in milliseconds. The next value is
-                // an integer.
-                let ms = parse.next_int()?;
-                expire = Some(Duration::from_millis(ms));
-            }
-            // Currently, mini-redis does not support any of the other SET
-            // options. An error here results in the connection being
-            // terminated. Other connections will continue to operate normally.
-            Ok(_) => return Err("currently `SET` only supports the expiration option".into()),
-            // The `EndOfStream` error indicates there is no further data to
-            // parse. In this case, it is a normal run time situation and
-            // indicates there are no specified `SET` options.
-            Err(EndOfStream) => {}
-            // All other errors are bubbled up, resulting in the connection
-            // being terminated.
-            Err(err) => return Err(err.into()),
-        }
 
-        Ok(Set { key, value, expire })
+        // 创建一个mut expire，用于存储过期时间。初始值为 None。
+
+
+        /*
+        使用 match 匹配下一个字符串字段的情况：
+        - 如果下一个字符串字段是 "EX"（不区分大小写），则表示设置了过期时间且单位是secs，下一个值应该是一个整数，并转成Duration类型。
+        - 如果下一个字符串字段是 "PX"（不区分大小写），则表示设置了过期时间且单位是millis，下一个值应该是一个整数，并转成Duration类型。
+        - 如果下一个字符串字段不是 "EX" 或 "PX"，则表示设置了不支持的选项，将返回一个错误，指示 SET 目前仅支持过期时间选项。
+        - 如果解析到达流的末尾，表示没有进一步的数据需要解析，这是正常的运行时情况，表示没有指定 SET 的选项。
+        - 其他所有错误都会返回一个错误，导致连接被终止。
+        */
+
+        // 返回set类型
+        todo!();
     }
 
-    /// Apply the `Set` command to the specified `Db` instance.
-    ///
-    /// The response is written to `dst`. This is called by the server in order
-    /// to execute a received command.
+    /// 对数据库连接执行set命令
     #[instrument(skip(self, db, dst))]
     pub(crate) async fn apply(self, db: &Db, dst: &mut Connection) -> crate::Result<()> {
-        // Set the value in the shared database state.
-        db.set(self.key, self.value, self.expire);
+        // 执行set
 
-        // Create a success response and write it to `dst`.
-        let response = Frame::Simple("OK".to_string());
-        debug!(?response);
-        dst.write_frame(&response).await?;
-
-        Ok(())
+        // 创建执行成功响应，并写给连接
+        todo!();
     }
 
-    /// Converts the command into an equivalent `Frame`.
-    ///
-    /// This is called by the client when encoding a `Set` command to send to
-    /// the server.
+    /// 将set命令转成frame形式
     pub(crate) fn into_frame(self) -> Frame {
         let mut frame = Frame::array();
-        frame.push_bulk(Bytes::from("set".as_bytes()));
-        frame.push_bulk(Bytes::from(self.key.into_bytes()));
-        frame.push_bulk(self.value);
-        if let Some(ms) = self.expire {
-            // Expirations in Redis procotol can be specified in two ways
-            // 1. SET key value EX seconds
-            // 2. SET key value PX milliseconds
-            // We the second option because it allows greater precision and
-            // src/bin/cli.rs parses the expiration argument as milliseconds
-            // in duration_from_ms_str()
-            frame.push_bulk(Bytes::from("px".as_bytes()));
-            frame.push_int(ms.as_millis() as u64);
-        }
+        // 将命令以["set",key,value]的形式写入frame
+        todo!();
+        // 判断是否有过期时间，如果有过期时间以["px",ms]的格式写入frame
+        todo!();
         frame
     }
 }
